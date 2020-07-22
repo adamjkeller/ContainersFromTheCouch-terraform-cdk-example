@@ -1,24 +1,25 @@
 #!/usr/bin/env python
+
 from constructs import Construct
 from cdktf import App, TerraformStack
-from imports.aws import Instance, AwsProvider, Vpc, EcsCluster, EcsTaskDefinition, EcsService, EcsServiceNetworkConfiguration
+from imports.aws import AwsProvider, EcsCluster, EcsTaskDefinition, EcsService, EcsServiceNetworkConfiguration
 
 
-class MyStack(TerraformStack):
+class NginxECSService(TerraformStack):
     def __init__(self, scope: Construct, ns: str):
         super().__init__(scope, ns)
 
-        # Defining my provider
-        AwsProvider(self, 'Aws', region='us-west-2')
+        # Defining my provider 
+        AwsProvider(self, "AWS", region="us-west-2")
         
-        # Easy, build an EC2 instance
-        #Instance(self, "hello", ami="ami-a0cfeed8", instance_type="t2.micro")
+        # Creating the ECS Cluster
+        ecs_cluster = EcsCluster(
+            self, "CftC",
+            name="ContainersFromTheCouchLive"
+        )
         
-        # Build an ECS Cluster
-        ecs_cluster = EcsCluster(self, "ContainersFromTheCouch", name='ContainersFromTheCouch')
-        
-        # Build an ECS Task Definition
-        nginx_task_def = EcsTaskDefinition(
+        # Creating a task definition for the nginx service
+        task_definition = EcsTaskDefinition(
             self, "TaskDef",
             container_definitions="""[
               {
@@ -33,24 +34,25 @@ class MyStack(TerraformStack):
                 ]
               }
             ]""",
-            family="cfc",
+            family="cfclatest",
             requires_compatibilities=["FARGATE"],
             network_mode="awsvpc",
             cpu="512",
             memory="2048"
         )
         
+        # Creating an ECS service
         EcsService(
             self, "NginxService",
             cluster=ecs_cluster.id,
-            name="nginx-service",
+            name="nginx-service-latest",
             desired_count=1,
-            task_definition=nginx_task_def.arn,
+            task_definition=task_definition.arn,
             network_configuration=[
                 EcsServiceNetworkConfiguration(
-                    subnets=['subnet-891ad8f1', 'subnet-b17aa7ec'],
+                    subnets=['<REPLACE>', '<REPLACE>'],
                     assign_public_ip=True,
-                    security_groups=['sg-0b52a3487bce05901']
+                    security_groups=['<REPLACE>']
                 )
             ],
             launch_type="FARGATE"
@@ -58,6 +60,6 @@ class MyStack(TerraformStack):
 
 
 app = App()
-MyStack(app, "terraform-cdk-tests")
+NginxECSService(app, "containersfromthecouch")
 
 app.synth()
